@@ -38,22 +38,17 @@ class StockEnv:
         self.Data, self.PriceScale, self.VolumeScale = self.FormatData(data)
         self.TimeStep = timestep
         self.BalScale = 2000
-        self.RewardScale = 1
-        self.ShareScale = 100
+        self.RewardScale = .5
+        self.ShareScale = 50
         firstrow = self.Data.iloc[timestep]
         self.State = State(firstrow['Datetime'], firstrow['Price'], firstrow['Volume'], 0, startBal/self.BalScale)
-        self.States =pandas.DataFrame(np.zeros((self.BatchSize,5)))
-        self.States.iloc[0] = self.State.to_array()
         
     def LoadData(self, ticker):
-        yf.pdr_override() # <== that's all it takes :-)
+        yf.pdr_override() 
         ftse = yf.Ticker(ticker)
-        #data = ftse.history(period= "1wk", interval="1m")
         data = ftse.history(start="2021-01-20", end="2021-01-27", interval = "1m")
         data2 = ftse.history(start="2021-01-27", end="2021-02-03", interval = "1m")
         data3 = ftse.history(start="2021-02-03", end="2021-02-10", interval = "1m")
-        #data4 = ftse.history(start="2021-01-10", end="2021-01-15", interval = "1m")
-        #data5 = ftse.history(start="2021-01-01", end="2021-01-08", interval = "1m")
         data = pandas.concat([data,data2,data3], axis = 0)
         data = data.reset_index()
         return data
@@ -61,19 +56,16 @@ class StockEnv:
     def FormatData(self, data):    
         Price = data['Open']
         Volume = data['Volume']
-        Time = (data['Datetime'].dt.day) + (data['Datetime'].dt.hour/24) + (data['Datetime'].dt.minute/1440)
-        Time = Time/3000
+        Time = (data['Datetime'].dt.hour/24) + (data['Datetime'].dt.minute/1440)
+        Time = Time/24
         X = pandas.DataFrame(Time)
         X ['Price'] = Price/Price.max()
-        
         X['Volume'] = Volume/Volume.max()
         return X, Price.max(), Volume.max()
     
     def Step(self, action):
         self.Penalty = 0
         self.PreviousState = copy.deepcopy(self.State)
-        self.States = self.States.shift(1)
-       # self.AllStates.append(self.State.to_array())
         if (action == 0):
             self.Hold()
         elif(action == 1):
@@ -82,10 +74,9 @@ class StockEnv:
             self.Sell()
         self.State.Shares = (round(self.State.Shares*self.ShareScale))/self.ShareScale
         reward = self.GetReward()
-        self.States.iloc[0] = self.State.to_array()
         if(self.TimeStep > len(self.Data.index)-4):
             self.Finished = True
-        return self.States.to_numpy(), reward
+        return self.State.to_array(), reward
     
     def GetStateValue(self, state):
         return ((state.Balance * self.BalScale) + ((state.Shares*self.ShareScale) * (state.Price* self.PriceScale)))

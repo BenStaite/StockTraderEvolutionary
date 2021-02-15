@@ -29,8 +29,8 @@ bigVals = []
 def createModel():
     model = Sequential()
     model.add(layers.Input(batch_shape = (1,num_batch,num_inputs)))
-    model.add(layers.LSTM(50, return_sequences = False, activation="tanh",stateful = True))
-   # model.add(layers.LSTM(units = 25, return_sequences = False, activation = 'relu'))
+    model.add(layers.LSTM(50, return_sequences = True, activation="tanh",stateful = True))
+    model.add(layers.LSTM(units = 25, return_sequences = False, activation = 'relu',stateful = True))
     model.add(layers.Dense(num_actions, activation="softmax"))
     return model
 
@@ -112,22 +112,22 @@ def createNextGen(t):
 for i in range(0,num_models):
     wrapper.append([createModel(), StockEnv.StockEnv("KO", 1000, num_batch,0)])
     
-template = "Generation: {}, Average Val: {:.3f}, Timestep: {}"
+template = "Generation: {}, Average Val: {:.3f}, Timestep: {}, Price: {:.3f}"
 
 gen = 0
-while True:  # Run until solved
-    resetModelStates()
+while True:
+    resetModelStates() # Reset model memory when environment is refreshed
     finished = False
     Timestep = 0
     while(not finished):
         tot = 0
         for i in range(0,num_models):
-            state = wrapper[i][1].States.to_numpy()
-            x = tf.Variable([state], trainable=True, dtype=tf.float32)
-            # Predict action probabilities and estimated future rewards
+            state = wrapper[i][1].State.to_array()
+            x = tf.Variable([[state]], trainable=True, dtype=tf.float32)
+            # Predict action probabilities
             # from environment state
             action_probs = wrapper[i][0](x)
-            # Sample action from action probability distribution
+            # Sample action from action probability distribution if no NANs
             if(np.isnan(np.min(action_probs))):
                 action = 0
                 print("NAN")
@@ -137,19 +137,18 @@ while True:  # Run until solved
             # Apply the sampled action in our environment
             wrapper[i][1].Step(action)
             tot += wrapper[i][1].GetStateValue(wrapper[i][1].State)
-            
-            
         
         if(wrapper[0][1].Finished):
             finished = True
-        print(template.format(gen, tot/num_models, Timestep))
+        print(template.format(gen, tot/num_models, Timestep, wrapper[0][1].State.Price * wrapper[0][1].PriceScale))
         
+        #Every 200 timesteps, create new generation
         if(Timestep % 200 == 0):
             createNextGen(Timestep)
             gen+=1        
         Timestep+=1
         
-    createNextGen(Timestep)
+    createNextGen(0)
 
 
 
