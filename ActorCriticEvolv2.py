@@ -17,7 +17,7 @@ import time
 import pandas
 import random
 
-num_batch = 10
+num_batch = 1
 num_randoms = 2
 num_models = 20
 num_inputs = 5
