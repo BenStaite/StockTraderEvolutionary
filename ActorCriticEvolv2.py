@@ -144,6 +144,7 @@ while True:
         
         #Every 200 timesteps, create new generation
         if(Timestep % 200 == 0):
+            resetModelStates()
             createNextGen(Timestep)
             gen+=1        
         Timestep+=1
