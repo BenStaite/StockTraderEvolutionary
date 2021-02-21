@@ -17,7 +17,7 @@ import time
 import pandas
 import random
 
-num_batch = 1
+num_batch = 25
 num_randoms = 2
 num_models = 20
 num_inputs = 5
@@ -30,7 +30,7 @@ def createModel():
     model = Sequential()
     model.add(layers.Input(batch_shape = (1,num_batch,num_inputs)))
     model.add(layers.LSTM(50, return_sequences = True, activation="tanh",stateful = True))
-    model.add(layers.LSTM(units = 25, return_sequences = False, activation = 'relu',stateful = True))
+    model.add(layers.LSTM(units = 25, return_sequences = False, activation = 'relu'))
     model.add(layers.Dense(num_actions, activation="softmax"))
     return model
 
@@ -122,8 +122,8 @@ while True:
     while(not finished):
         tot = 0
         for i in range(0,num_models):
-            state = wrapper[i][1].State.to_array()
-            x = tf.Variable([[state]], trainable=True, dtype=tf.float32)
+            state = wrapper[i][1].States.to_numpy()
+            x = tf.Variable([state], trainable=True, dtype=tf.float32)
             # Predict action probabilities
             # from environment state
             action_probs = wrapper[i][0](x)
